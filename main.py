@@ -68,6 +68,11 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         self.green_intensity.valueChanged.connect(self.update_view)
         self.blue_intensity.valueChanged.connect(self.update_view)
         self.brightness_intensity.valueChanged.connect(self.update_view)
+        self.green_to_blue.clicked.connect(self.update_view)
+        self.red_to_green.clicked.connect(self.update_view)
+        self.red_to_blue.clicked.connect(self.update_view)
+        self.change_nothing.clicked.connect(self.update_view)
+
         # Рисование квадрата на ImageView
         #self.image_view.getView().scene().sigMouseClicked.connect()
 
@@ -139,7 +144,9 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         else:
             intensity = 0
             channel = 0
-        self.img[:, :, channel] = np.clip(self.img[:, :, channel] * intensity, 1, 255)
+        if intensity == 1:
+            return
+        self.img[:, :, channel] = np.clip(self.img[:, :, channel] * intensity, 0, 255)
 
 
     def negate_rgb(self, channel=None):
@@ -153,8 +160,25 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
             self.img[:, :, 0:3] = np.array([255, 255, 255]) - self.img[:, :, 0:3]
 
 
+    def change_channels_data(self, sender=None):
+        if sender is None:
+            sender = self.sender()
+        if sender == "red_to_blue":
+            self.img[:, :, 0], self.img[:, :, 2] = self.img[:, :, 2], self.img[:, :, 0]
+        elif sender == "red_to_green":
+            self.img[:, :, 0], self.img[:, :, 1] = self.img[:, :, 1], self.img[:, :, 0]
+        elif sender == "green_to_blue":
+            self.img[:, :, 1], self.img[:, :, 2] = self.img[:, :, 2], self.img[:, :, 1]
+
     def update_view(self):
         self.img = copy.deepcopy(self.img_original)
+        if self.red_to_blue.isChecked():
+            self.change_channels_data("red_to_blue")
+        elif self.red_to_green.isChecked():
+            self.change_channels_data("red_to_green")
+        elif self.green_to_blue.isChecked():
+            self.change_channels_data("green_to_blue")
+
         if self.get_red_negation.isChecked():
             self.negate_rgb("red")
         if self.get_green_negation.isChecked():
@@ -169,6 +193,7 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         self.change_brightness()
         self.image_view.clear()
         self.image_view.setImage(self.img)
+
 
 if __name__ == "__main__":
     application = QtWidgets.QApplication(argv)
