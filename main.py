@@ -11,7 +11,8 @@ from PyQt5 import uic
 # from converted_ui import Ui_MainWindow
 import pyqtgraph as pg
 
-Ui_MainWindow,_ = uic.loadUiType("hue/interface.ui")
+
+Ui_MainWindow, _ = uic.loadUiType("interface.ui")
 class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self):
         super(Redactor, self).__init__()
@@ -22,18 +23,41 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         self.image_view.ui.histogram.hide()
         self.image_view.ui.roiBtn.hide()
         self.image_view.ui.menuBtn.hide()
-        self.n = 13
+        self.n = 11
         self.create_square(self.n, 1)
         self.square_item = pg.ImageItem(self.square, axisOrder="row-major")
         self.image_view.addItem(self.square_item)
         self.load_image_action.triggered.connect(self.load_image)
         self.save_image_action.triggered.connect(self.save_image)
-        self.rp=self.redHist.addPlot()
+        self.redHist.setBackground("w")
+        self.greenHist.setBackground("w")
+        self.blueHist.setBackground("w")
+        self.rp = self.redHist.addPlot()
+        self.rp.setXRange(0, 255, padding=0)
+        # self.rp.setYRange(0, self.n**2, padding=0)
         self.gp = self.greenHist.addPlot()
+        self.gp.setXRange(0, 255, padding=0)
+        #         self.gp.setYRange(0, self.n ** 2, padding=0)
         self.bp = self.blueHist.addPlot()
+        self.bp.setXRange(0, 255, padding=0)
 
-    def make_hists(self, ):
-        pass
+    #         self.bp.setYRange(0, self.n ** 2, padding=0)
+
+    def make_hists(self, x, y, n):
+
+        # Выделите область квадрата
+        squareRegion = self.img[x + 1:x + 1 + n, y + 1:y + 1 + n]
+        roi = pg.ImageItem(squareRegion)
+        hists = roi.getHistogram(perChannel=True)
+        self.rp.clear()
+        self.gp.clear()
+        self.bp.clear()
+        self.rp.addItem(pg.PlotCurveItem(x=hists[0][0], y=hists[0][1], fillLevel=0, brush=pg.mkBrush(color="r"),
+                                         pen=pg.mkPen(color="r")))
+        self.gp.addItem(pg.PlotCurveItem(x=hists[1][0], y=hists[1][1], fillLevel=0, brush=pg.mkBrush(color="g"),
+                                         pen=pg.mkPen(color="g")))
+        self.bp.addItem(pg.PlotCurveItem(x=hists[2][0], y=hists[2][1], fillLevel=0, brush=pg.mkBrush(color="b"),
+                                         pen=pg.mkPen(color="b")))
 
     def load_image(self):
         self.image_view.clear()
@@ -45,18 +69,19 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         self.img = Image.open(filepath)
         print(type(self.img))
         # Преобразование изображения в массив numpy
-        img_array = np.flipud(np.rot90(np.array(self.img)))
+        self.img = np.flipud(np.rot90(np.array(self.img)))
         # Вычисляем среднее значение интенсивности для каждого пикселя
-        intensity = np.mean(img_array, axis=2)
+        intensity = np.mean(self.img, axis=2)
         # # Создаем чёрно-белое изображение, повторяя массив интенсивности для каждого канала
         #
         # img_array = np.stack((intensity, intensity, intensity), axis=2)
+
         self.img = img_array
         self.img_original = copy.deepcopy(self.img)
         self.img_height = img_array.shape[1]
         self.img_width = img_array.shape[0]
         # Отображение изображения в ImageView
-        self.image_view.setImage(img_array)
+        self.image_view.setImage(self.img)
         self.image_view.getView().setMouseEnabled(x=False, y=False)
         self.proxy = SignalProxy(self.image_view.scene.sigMouseMoved, rateLimit=60, slot=self.mouseMoved)
 
@@ -74,9 +99,10 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         self.change_nothing.clicked.connect(self.update_view)
 
         # Рисование квадрата на ImageView
-        #self.image_view.getView().scene().sigMouseClicked.connect()
+        # self.image_view.getView().scene().sigMouseClicked.connect()
 
     def create_square(self, n, w=5):
+        n += w * 2
         self.square = []
         for _ in range(w):
             self.square.append([[255, 255, 255, 255]] * n)
@@ -89,14 +115,15 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def mouseMoved(self, e):
         plot_pos = self.image_view.getView().mapToView(e[0])
-        upper_border = plot_pos.y() - self.n//2 >= 0
-        left_border = plot_pos.x() - self.n//2 >= 0
-        right_border = plot_pos.x() + self.n//2 <= self.img_width
+        upper_border = plot_pos.y() - self.n // 2 >= 0
+        left_border = plot_pos.x() - self.n // 2 >= 0
+        right_border = plot_pos.x() + self.n // 2 <= self.img_width
         bottom_border = plot_pos.y() + self.n // 2 <= self.img_height
 
         check_borders = upper_border and left_border and right_border and bottom_border
         if check_borders:
-            self.square_item.setRect(pg.QtCore.QRectF(plot_pos.x()-self.n//2, plot_pos.y()-self.n//2, self.n, self.n))
+            self.square_item.setRect(
+                pg.QtCore.QRectF(plot_pos.x() - self.n // 2, plot_pos.y() - self.n // 2, self.n, self.n))
 
         elif right_border and upper_border and bottom_border:
             self.square_item.setRect(
@@ -108,11 +135,16 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
 
         elif right_border and left_border and bottom_border:
             self.square_item.setRect(
-                pg.QtCore.QRectF(plot_pos.x()-self.n//2, 0, self.n, self.n))
+                pg.QtCore.QRectF(plot_pos.x() - self.n // 2, 0, self.n, self.n))
 
         elif left_border and right_border and upper_border:
             self.square_item.setRect(
-                pg.QtCore.QRectF(plot_pos.x() - self.n // 2, self.img_height - self.n,  self.n, self.n))
+
+                pg.QtCore.QRectF(plot_pos.x() - self.n // 2, self.img_height - self.n, self.n, self.n))
+
+        rect = self.square_item.boundingRect()  # Получаем текущий QRectF
+        graphPos = self.image_view.getView().mapSceneToView(self.square_item.mapToScene(rect.topLeft()))
+        self.make_hists(int(graphPos.x()), int(graphPos.y()), self.n)
 
     def save_image(self):
         if self.img is None:
@@ -193,7 +225,6 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         self.change_brightness()
         self.image_view.clear()
         self.image_view.setImage(self.img)
-
 
 if __name__ == "__main__":
     application = QtWidgets.QApplication(argv)
