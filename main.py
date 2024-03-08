@@ -32,7 +32,7 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         self.gp = self.greenHist.addPlot()
         self.bp = self.blueHist.addPlot()
 
-    def make_hists(self, ):
+    def make_hists(self, x, y, n):
         pass
 
     def load_image(self):
