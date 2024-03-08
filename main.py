@@ -144,8 +144,6 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
             std_intensity = round(intensity.std(), 2)
             self.frame_mean.setText(str(avg_intensity))
             self.frame_std.setText(str(std_intensity))
-        else:
-            pass
         '''
         elif right_border and upper_border and bottom_border:
             self.square_item.setRect(
