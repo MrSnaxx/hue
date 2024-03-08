@@ -7,8 +7,6 @@ from PyQt5.QtGui import QPixmap, QPainter, QColor
 from PyQt5.QtWidgets import QFileDialog
 from pyqtgraph import SignalProxy
 from PyQt5 import uic
-
-
 # from converted_ui import Ui_MainWindow
 import pyqtgraph as pg
 
