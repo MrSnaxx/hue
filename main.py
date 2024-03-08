@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import QFileDialog
 from pyqtgraph import SignalProxy
 from PyQt5 import uic
 
+
 # from converted_ui import Ui_MainWindow
 import pyqtgraph as pg
 
