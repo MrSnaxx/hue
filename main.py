@@ -34,6 +34,8 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
     def make_hists(self, ):
         pass
 
+
+
     def load_image(self):
         self.image_view.clear()
         filename = QFileDialog.getOpenFileName(self, "Загрузка изображения", "", "Image (*.png *.tiff *.bmp)")
