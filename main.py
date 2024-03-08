@@ -1,21 +1,22 @@
+import copy
 from sys import argv
 
 import numpy as np
 from PIL import Image
 from PyQt5 import QtWidgets, Qt
 from PyQt5.QtGui import QPixmap, QPainter, QColor
-from PyQt5.QtWidgets import QFileDialog
+from PyQt5.QtWidgets import QFileDialog, QMessageBox
 from pyqtgraph import SignalProxy
 from PyQt5 import uic
 # from converted_ui import Ui_MainWindow
 import pyqtgraph as pg
 
-Ui_MainWindow,_ = uic.loadUiType("interface.ui")
+Ui_MainWindow,_ = uic.loadUiType("hue/interface.ui")
 class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self):
         super(Redactor, self).__init__()
         self.setupUi(self)
-        self.image = None
+        self.img = None
         self.image_view = pg.ImageView()
         self.image_layout.addWidget(self.image_view)
         self.image_view.ui.histogram.hide()
@@ -34,13 +35,15 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
     def make_hists(self, ):
         pass
 
-
-
     def load_image(self):
         self.image_view.clear()
         filename = QFileDialog.getOpenFileName(self, "Загрузка изображения", "", "Image (*.png *.tiff *.bmp)")
+        if filename[0] == "":
+            QMessageBox.about(self, "Ошибка", "Файл не выбран")
+            return
         filepath = filename[0]
         self.img = Image.open(filepath)
+        print(type(self.img))
         # Преобразование изображения в массив numpy
         img_array = np.flipud(np.rot90(np.array(self.img)))
         # Вычисляем среднее значение интенсивности для каждого пикселя
@@ -48,7 +51,8 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         # # Создаем чёрно-белое изображение, повторяя массив интенсивности для каждого канала
         #
         # img_array = np.stack((intensity, intensity, intensity), axis=2)
-        print(img_array)
+        self.img = img_array
+        self.img_original = copy.deepcopy(self.img)
         self.img_height = img_array.shape[1]
         self.img_width = img_array.shape[0]
         # Отображение изображения в ImageView
@@ -56,6 +60,14 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         self.image_view.getView().setMouseEnabled(x=False, y=False)
         self.proxy = SignalProxy(self.image_view.scene.sigMouseMoved, rateLimit=60, slot=self.mouseMoved)
 
+        self.get_red_negation.stateChanged.connect(self.update_view)
+        self.get_green_negation.stateChanged.connect(self.update_view)
+        self.get_blue_negation.stateChanged.connect(self.update_view)
+        self.get_brightness_negation.stateChanged.connect(self.update_view)
+        self.red_intensity.valueChanged.connect(self.update_view)
+        self.green_intensity.valueChanged.connect(self.update_view)
+        self.blue_intensity.valueChanged.connect(self.update_view)
+        self.brightness_intensity.valueChanged.connect(self.update_view)
         # Рисование квадрата на ImageView
         #self.image_view.getView().scene().sigMouseClicked.connect()
 
@@ -97,12 +109,66 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
             self.square_item.setRect(
                 pg.QtCore.QRectF(plot_pos.x() - self.n // 2, self.img_height - self.n,  self.n, self.n))
 
-
-
     def save_image(self):
-        pass
+        if self.img is None:
+            QMessageBox.about(self, "Ошибка", "Нечего сохранять")
+            return
+        filename = QFileDialog.getSaveFileName(self, "Open Image", "hue", "Image Files (*.png *.tiff *.bmp)")
+        print(filename)
+        if filename[0] == "":
+            QMessageBox.about(self, "Ошибка", "Путь сохранения не выбран")
+            return
+        self.image_view.getImageItem().save(filename[0])
+
+    def change_brightness(self):
+        brightness = self.brightness_intensity.value()
+        self.img[:, :, 3] = brightness
+
+    def change_color_intensity(self, sender=None):
+        if sender is None:
+            sender = self.sender()
+        if sender == "red_intensity":
+            intensity = self.red_intensity.value() / 10
+            channel = 0
+        elif sender == "green_intensity":
+            intensity = self.green_intensity.value() / 10
+            channel = 1
+        elif sender == "blue_intensity":
+            intensity = self.blue_intensity.value() / 10
+            channel = 2
+        else:
+            intensity = 0
+            channel = 0
+        self.img[:, :, channel] = np.clip(self.img[:, :, channel] * intensity, 1, 255)
 
 
+    def negate_rgb(self, channel=None):
+        if channel == "red":
+            self.img[:, :, 0] = 255 - self.img[:, :, 0]
+        elif channel == "green":
+            self.img[:, :, 1] = 255 - self.img[:, :, 1]
+        elif channel == "blue":
+            self.img[:, :, 2] = 255 - self.img[:, :, 2]
+        else:
+            self.img[:, :, 0:3] = np.array([255, 255, 255]) - self.img[:, :, 0:3]
+
+
+    def update_view(self):
+        self.img = copy.deepcopy(self.img_original)
+        if self.get_red_negation.isChecked():
+            self.negate_rgb("red")
+        if self.get_green_negation.isChecked():
+            self.negate_rgb("green")
+        if self.get_blue_negation.isChecked():
+            self.negate_rgb("blue")
+        if self.get_brightness_negation.isChecked():
+            self.negate_rgb()
+        self.change_color_intensity("red_intensity")
+        self.change_color_intensity("green_intensity")
+        self.change_color_intensity("blue_intensity")
+        self.change_brightness()
+        self.image_view.clear()
+        self.image_view.setImage(self.img)
 
 if __name__ == "__main__":
     application = QtWidgets.QApplication(argv)
