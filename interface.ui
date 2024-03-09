@@ -310,7 +310,7 @@
           <string>Параметры изображения</string>
          </property>
          <layout class="QGridLayout" name="gridLayout">
-          <item row="5" column="0">
+          <item row="8" column="0">
            <widget class="QRadioButton" name="vertical_symmetric">
             <property name="text">
              <string>Симметрия по вертикали</string>
@@ -376,7 +376,7 @@
             </property>
            </widget>
           </item>
-          <item row="3" column="1">
+          <item row="4" column="1">
            <widget class="QSlider" name="brightness_intensity">
             <property name="minimum">
              <number>0</number>
@@ -395,7 +395,7 @@
             </property>
            </widget>
           </item>
-          <item row="3" column="0">
+          <item row="4" column="0">
            <widget class="QLabel" name="label_28">
             <property name="text">
              <string>Интенсивность яркости изображения</string>
@@ -421,17 +421,60 @@
             </property>
            </widget>
           </item>
-          <item row="6" column="0">
+          <item row="5" column="0">
+           <widget class="QLabel" name="label">
+            <property name="text">
+             <string>Контрастность изображения</string>
+            </property>
+           </widget>
+          </item>
+          <item row="5" column="1">
+           <widget class="QSlider" name="contrast_coef">
+            <property name="maximum">
+             <number>30</number>
+            </property>
+            <property name="value">
+             <number>15</number>
+            </property>
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="9" column="0">
            <widget class="QRadioButton" name="horizontal_symmetric">
             <property name="text">
              <string>Симметрия по горизонтали</string>
             </property>
            </widget>
           </item>
-          <item row="4" column="0">
+          <item row="7" column="0">
            <widget class="QRadioButton" name="not_symmetric">
             <property name="text">
              <string>Не делать симметрию</string>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="1">
+           <widget class="QSlider" name="sepia_coef">
+            <property name="maximum">
+             <number>100</number>
+            </property>
+            <property name="value">
+             <number>0</number>
+            </property>
+            <property name="sliderPosition">
+             <number>0</number>
+            </property>
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="6" column="0">
+           <widget class="QLabel" name="label_2">
+            <property name="text">
+             <string>Сепия изображения</string>
             </property>
            </widget>
           </item>
@@ -477,6 +520,56 @@
           </item>
          </layout>
         </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupBox_10">
+         <property name="title">
+          <string>Удаление шумов</string>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_8">
+          <item>
+           <widget class="QRadioButton" name="no_blur">
+            <property name="text">
+             <string>Без размытия</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QRadioButton" name="four_blur">
+            <property name="text">
+             <string>Размытие по модели 4-связности</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QRadioButton" name="eight_blur">
+            <property name="text">
+             <string>Размытие по модели 8-связности</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="backup_image_btn">
+            <property name="text">
+             <string>Сбросить настройки изображения</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <spacer name="verticalSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
        </item>
       </layout>
      </widget>

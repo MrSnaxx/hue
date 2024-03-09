@@ -103,6 +103,12 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         self.horizontal_symmetric.clicked.connect(self.update_view)
         self.vertical_symmetric.clicked.connect(self.update_view)
         self.not_symmetric.clicked.connect(self.update_view)
+        self.four_blur.clicked.connect(self.update_view)
+        self.eight_blur.clicked.connect(self.update_view)
+        self.no_blur.clicked.connect(self.update_view)
+        self.contrast_coef.valueChanged.connect(self.update_view)
+        self.sepia_coef.valueChanged.connect(self.update_view)
+        self.backup_image_btn.clicked.connect(self.backup_image)
 
         # Рисование квадрата на ImageView
         # self.image_view.getView().scene().sigMouseClicked.connect()
@@ -253,6 +259,55 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         elif direction == "vertical":
             self.img = np.flipud(np.array(self.img))
 
+    def add_blur(self, neighbours):
+        img_copy = copy.deepcopy(self.img)
+        for y in range(1, self.img_height - 1):
+            for x in range(1, self.img_width - 1):
+                current_pixel = img_copy[x][y]
+                pixels = [img_copy[x - 1][y][0:3], img_copy[x][y - 1][0:3],
+                          img_copy[x + 1][y][0:3], img_copy[x][y + 1][0:3], current_pixel]
+                if neighbours == 8:
+                    corner_neigbours = [img_copy[x - 1][y - 1][0:3], img_copy[x + 1][y - 1][0:3],
+                                        img_copy[x - 1][y + 1][0:3], img_copy[x + 1][y + 1][0:3]]
+                    pixels.extend(corner_neigbours)
+                for i in range(3):
+                    if neighbours == 4:
+                        mean_value = sum([pixel[i] for pixel in pixels]) / 5
+                    else:
+                        mean_value = sum([pixel[i] for pixel in pixels]) / 9
+                    self.img[x][y][i] = mean_value
+
+    def change_contrast(self):
+        contrast_coef = self.contrast_coef.value() / 10
+        mean_brightness = self.img[:, :, 0:3].mean()
+        self.img[:, :, 0] = np.clip(mean_brightness + (self.img[:, :, 0] - mean_brightness) * contrast_coef, 0, 255)
+        self.img[:, :, 1] = np.clip(mean_brightness + (self.img[:, :, 1] - mean_brightness) * contrast_coef, 0, 255)
+        self.img[:, :, 2] = np.clip(mean_brightness + (self.img[:, :, 2] - mean_brightness) * contrast_coef, 0, 255)
+
+    def add_sepia(self):
+        sepia_coef = self.sepia_coef.value()
+        self.img[:, :, 0] = np.clip(np.mean(self.img[:, :, 0:3], axis=2) + 2 * sepia_coef, 0, 255)
+        self.img[:, :, 1] = np.clip(np.mean(self.img[:, :, 0:3], axis=2) + sepia_coef, 0, 255)
+        self.img[:, :, 2] = np.clip(np.mean(self.img[:, :, 0:3], axis=2), 0, 255)
+
+    def backup_image(self):
+        self.image_view.clear()
+        self.get_red_negation.setChecked(False)
+        self.get_green_negation.setChecked(False)
+        self.get_blue_negation.setChecked(False)
+        self.get_brightness_negation.setChecked(False)
+        self.red_intensity.setValue(10)
+        self.green_intensity.setValue(10)
+        self.blue_intensity.setValue(10)
+        self.brightness_intensity.setValue(255)
+        self.contrast_coef.setValue(15)
+        self.sepia_coef.setValue(0)
+        self.not_symmetric.setChecked(True)
+        self.change_nothing.setChecked(True)
+        self.no_blur.setChecked(True)
+        self.img = copy.deepcopy(self.img_original)
+        self.image_view.setImage(self.img)
+
     def update_view(self):
         self.img = copy.deepcopy(self.img_original)
         if self.horizontal_symmetric.isChecked():
@@ -269,16 +324,37 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
 
         if self.get_red_negation.isChecked():
             self.negate_rgb("red")
+
         if self.get_green_negation.isChecked():
             self.negate_rgb("green")
+
         if self.get_blue_negation.isChecked():
             self.negate_rgb("blue")
+
         if self.get_brightness_negation.isChecked():
             self.negate_rgb()
-        self.change_color_intensity("red_intensity")
-        self.change_color_intensity("green_intensity")
-        self.change_color_intensity("blue_intensity")
+
+        if self.red_intensity.value() != 10:
+            self.change_color_intensity("red_intensity")
+
+        if self.green_intensity.value() != 10:
+            self.change_color_intensity("green_intensity")
+
+        if self.blue_intensity.value() != 10:
+            self.change_color_intensity("blue_intensity")
+
         self.change_brightness()
+
+        if self.contrast_coef.value() != 15:
+            self.change_contrast()
+
+        if self.sepia_coef.value() != 0:
+            self.add_sepia()
+
+        if self.eight_blur.isChecked():
+            self.add_blur(8)
+        elif self.four_blur.isChecked():
+            self.add_blur(4)
         self.image_view.clear()
         self.image_view.setImage(self.img)
 
