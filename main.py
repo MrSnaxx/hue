@@ -45,12 +45,9 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         #         self.gp.setYRange(0, self.n ** 2, padding=0)
         self.bp = self.blueHist.addPlot()
         self.bp.setXRange(0, 255, padding=0)
-
-
+        self.brightness_profile.setBackground("w")
     #         self.bp.setYRange(0, self.n ** 2, padding=0)
-
     def make_hists(self, x, y, n):
-
         # Выделите область квадрата
         squareRegion = self.img[x + 1:x + 1 + n, y + 1:y + 1 + n]
         roi = pg.ImageItem(squareRegion)
@@ -103,6 +100,9 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         self.red_to_green.clicked.connect(self.update_view)
         self.red_to_blue.clicked.connect(self.update_view)
         self.change_nothing.clicked.connect(self.update_view)
+        self.horizontal_symmetric.clicked.connect(self.update_view)
+        self.vertical_symmetric.clicked.connect(self.update_view)
+        self.not_symmetric.clicked.connect(self.update_view)
 
         # Рисование квадрата на ImageView
         # self.image_view.getView().scene().sigMouseClicked.connect()
@@ -137,7 +137,6 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
             intensity = []
             for x in range(x_start, x_end):
                 for y in range(y_start, y_end):
-                    print(self.img[x][y][0:3])
                     intensity.append(self.img[x][y][0:3].mean())
             intensity = np.array(intensity)
             avg_intensity = round(intensity.mean(), 2)
@@ -169,6 +168,11 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         if mouse_on_image:
             mouse_x = math.floor(plot_pos.x())
             mouse_y = math.floor(plot_pos.y())
+            row_intensity = []
+            for x in range(self.img_height):
+                row_intensity.append(self.img[x][mouse_y][0:3].mean())
+            self.brightness_profile.clear()
+            self.brightness_profile.plot(row_intensity)
             selected_pixel = self.img[mouse_x][mouse_y]
             red = selected_pixel[0]
             green = selected_pixel[1]
@@ -243,8 +247,19 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         elif sender == "green_to_blue":
             self.img[:, :, 1], self.img[:, :, 2] = self.img[:, :, 2], self.img[:, :, 1]
 
+    def get_symmetric(self, direction: str):
+        if direction == "horizontal":
+            self.img = np.fliplr(np.array(self.img))
+        elif direction == "vertical":
+            self.img = np.flipud(np.array(self.img))
+
     def update_view(self):
         self.img = copy.deepcopy(self.img_original)
+        if self.horizontal_symmetric.isChecked():
+            self.get_symmetric("horizontal")
+        elif self.vertical_symmetric.isChecked():
+            self.get_symmetric("vertical")
+
         if self.red_to_blue.isChecked():
             self.change_channels_data("red_to_blue")
         elif self.red_to_green.isChecked():
@@ -266,6 +281,9 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         self.change_brightness()
         self.image_view.clear()
         self.image_view.setImage(self.img)
+
+
+
 
 if __name__ == "__main__":
     application = QtWidgets.QApplication(argv)
