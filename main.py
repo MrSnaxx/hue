@@ -1,4 +1,9 @@
 import copy
+import math
+import warnings
+
+#suppress warnings
+warnings.filterwarnings('ignore')
 from sys import argv
 
 import numpy as np
@@ -12,7 +17,7 @@ from PyQt5 import uic
 import pyqtgraph as pg
 
 
-Ui_MainWindow, _ = uic.loadUiType("interface.ui")
+Ui_MainWindow, _ = uic.loadUiType("hue/interface.ui")
 class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self):
         super(Redactor, self).__init__()
@@ -40,6 +45,7 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         #         self.gp.setYRange(0, self.n ** 2, padding=0)
         self.bp = self.blueHist.addPlot()
         self.bp.setXRange(0, 255, padding=0)
+
 
     #         self.bp.setYRange(0, self.n ** 2, padding=0)
 
@@ -69,7 +75,7 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         self.img = Image.open(filepath)
         print(type(self.img))
         # Преобразование изображения в массив numpy
-        self.img = np.flipud(np.rot90(np.array(self.img)))
+        img_array = np.flipud(np.rot90(np.array(self.img)))
         # Вычисляем среднее значение интенсивности для каждого пикселя
         intensity = np.mean(self.img, axis=2)
         # # Создаем чёрно-белое изображение, повторяя массив интенсивности для каждого канала
@@ -119,12 +125,26 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         left_border = plot_pos.x() - self.n // 2 >= 0
         right_border = plot_pos.x() + self.n // 2 <= self.img_width
         bottom_border = plot_pos.y() + self.n // 2 <= self.img_height
-
         check_borders = upper_border and left_border and right_border and bottom_border
         if check_borders:
             self.square_item.setRect(
                 pg.QtCore.QRectF(plot_pos.x() - self.n // 2, plot_pos.y() - self.n // 2, self.n, self.n))
+            x_start = int(plot_pos.x()) - self.n // 2
+            x_end = x_start + self.n
 
+            y_start = int(plot_pos.y()) - self.n // 2
+            y_end = y_start + self.n // 2
+            intensity = []
+            for x in range(x_start, x_end):
+                for y in range(y_start, y_end):
+                    print(self.img[x][y][0:3])
+                    intensity.append(self.img[x][y][0:3].mean())
+            intensity = np.array(intensity)
+            avg_intensity = round(intensity.mean(), 2)
+            std_intensity = round(intensity.std(), 2)
+            self.frame_mean.setText(str(avg_intensity))
+            self.frame_std.setText(str(std_intensity))
+        '''
         elif right_border and upper_border and bottom_border:
             self.square_item.setRect(
                 pg.QtCore.QRectF(0, plot_pos.y() - self.n // 2, self.n, self.n))
@@ -139,12 +159,33 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
 
         elif left_border and right_border and upper_border:
             self.square_item.setRect(
-
                 pg.QtCore.QRectF(plot_pos.x() - self.n // 2, self.img_height - self.n, self.n, self.n))
 
-        rect = self.square_item.boundingRect()  # Получаем текущий QRectF
+        '''
+        rect = self.square_item.boundingRect()  # Получаем текущий QRectF)
         graphPos = self.image_view.getView().mapSceneToView(self.square_item.mapToScene(rect.topLeft()))
         self.make_hists(int(graphPos.x()), int(graphPos.y()), self.n)
+        mouse_on_image = (0 <= plot_pos.y() <= self.img_height) and (0 <= plot_pos.x() <= self.img_width)
+        if mouse_on_image:
+            mouse_x = math.floor(plot_pos.x())
+            mouse_y = math.floor(plot_pos.y())
+            selected_pixel = self.img[mouse_x][mouse_y]
+            red = selected_pixel[0]
+            green = selected_pixel[1]
+            blue = selected_pixel[2]
+            intensity = round((red + green + blue) / 3, 2)
+            self.pixel_coords.setText(f"X: {mouse_x} Y: {mouse_y}")
+            self.pixel_red.setText(str(red))
+            self.pixel_green.setText(str(green))
+            self.pixel_blue.setText(str(blue))
+            self.pixel_intensity.setText(str(intensity))
+        else:
+            self.pixel_coords.setText("[ДАННЫЕ УДАЛЕНЫ]")
+            self.pixel_red.setText("[ДАННЫЕ УДАЛЕНЫ]")
+            self.pixel_green.setText("[ДАННЫЕ УДАЛЕНЫ]")
+            self.pixel_blue.setText("[ДАННЫЕ УДАЛЕНЫ]")
+            self.pixel_intensity.setText("[ДАННЫЕ УДАЛЕНЫ]")
+
 
     def save_image(self):
         if self.img is None:
