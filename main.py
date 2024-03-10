@@ -2,7 +2,7 @@ import copy
 import math
 import warnings
 
-#suppress warnings
+# suppress warnings
 warnings.filterwarnings('ignore')
 from sys import argv
 
@@ -16,8 +16,9 @@ from PyQt5 import uic
 # from converted_ui import Ui_MainWindow
 import pyqtgraph as pg
 
-
 Ui_MainWindow, _ = uic.loadUiType("hue/interface.ui")
+
+
 class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self):
         super(Redactor, self).__init__()
@@ -28,8 +29,10 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         self.image_view.ui.histogram.hide()
         self.image_view.ui.roiBtn.hide()
         self.image_view.ui.menuBtn.hide()
+
         self.n = 11
         self.create_square(self.n, 1)
+
         self.square_item = pg.ImageItem(self.square, axisOrder="row-major")
         self.image_view.addItem(self.square_item)
         self.load_image_action.triggered.connect(self.load_image)
@@ -46,6 +49,7 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         self.bp = self.blueHist.addPlot()
         self.bp.setXRange(0, 255, padding=0)
         self.brightness_profile.setBackground("w")
+
     #         self.bp.setYRange(0, self.n ** 2, padding=0)
     def make_hists(self, x, y, n):
         # Выделите область квадрата
@@ -70,15 +74,8 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
             return
         filepath = filename[0]
         self.img = Image.open(filepath)
-        print(type(self.img))
         # Преобразование изображения в массив numpy
         img_array = np.flipud(np.rot90(np.array(self.img)))
-        # Вычисляем среднее значение интенсивности для каждого пикселя
-        intensity = np.mean(self.img, axis=2)
-        # # Создаем чёрно-белое изображение, повторяя массив интенсивности для каждого канала
-        #
-        # img_array = np.stack((intensity, intensity, intensity), axis=2)
-
         self.img = img_array
         self.img_original = copy.deepcopy(self.img)
         self.img_height = img_array.shape[1]
@@ -109,6 +106,12 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         self.contrast_coef.valueChanged.connect(self.update_view)
         self.sepia_coef.valueChanged.connect(self.update_view)
         self.backup_image_btn.clicked.connect(self.backup_image)
+        self.noSoseds.clicked.connect(self.update_view)
+        self.fourSoseds.clicked.connect(lambda:self.kontr_map(4))
+        self.eightSoseds.clicked.connect(lambda:self.kontr_map(3))
+        self.nnSoseds.clicked.connect(lambda:self.kontr_map(self.nBox.value()))
+        self.profile_row.valueChanged.connect(self.calculate_brightness_profile)
+        self.make_ch_b.stateChanged.connect(self.update_view)
 
         # Рисование квадрата на ImageView
         # self.image_view.getView().scene().sigMouseClicked.connect()
@@ -149,7 +152,7 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
             std_intensity = round(intensity.std(), 2)
             self.frame_mean.setText(str(avg_intensity))
             self.frame_std.setText(str(std_intensity))
-        '''
+
         elif right_border and upper_border and bottom_border:
             self.square_item.setRect(
                 pg.QtCore.QRectF(0, plot_pos.y() - self.n // 2, self.n, self.n))
@@ -166,7 +169,6 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
             self.square_item.setRect(
                 pg.QtCore.QRectF(plot_pos.x() - self.n // 2, self.img_height - self.n, self.n, self.n))
 
-        '''
         rect = self.square_item.boundingRect()  # Получаем текущий QRectF)
         graphPos = self.image_view.getView().mapSceneToView(self.square_item.mapToScene(rect.topLeft()))
         self.make_hists(int(graphPos.x()), int(graphPos.y()), self.n)
@@ -174,11 +176,6 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         if mouse_on_image:
             mouse_x = math.floor(plot_pos.x())
             mouse_y = math.floor(plot_pos.y())
-            row_intensity = []
-            for x in range(self.img_height):
-                row_intensity.append(self.img[x][mouse_y][0:3].mean())
-            self.brightness_profile.clear()
-            self.brightness_profile.plot(row_intensity)
             selected_pixel = self.img[mouse_x][mouse_y]
             red = selected_pixel[0]
             green = selected_pixel[1]
@@ -196,13 +193,11 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
             self.pixel_blue.setText("[ДАННЫЕ УДАЛЕНЫ]")
             self.pixel_intensity.setText("[ДАННЫЕ УДАЛЕНЫ]")
 
-
     def save_image(self):
         if self.img is None:
             QMessageBox.about(self, "Ошибка", "Нечего сохранять")
             return
         filename = QFileDialog.getSaveFileName(self, "Open Image", "hue", "Image Files (*.png *.tiff *.bmp)")
-        print(filename)
         if filename[0] == "":
             QMessageBox.about(self, "Ошибка", "Путь сохранения не выбран")
             return
@@ -210,7 +205,8 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def change_brightness(self):
         brightness = self.brightness_intensity.value()
-        self.img[:, :, 3] = brightness
+        self.img[:, :, 3] = self.img[:, :, 3] + np.clip(brightness, 0, 255-self.img[:, :, 3])
+        print(type(self.img[0][0][0]))
 
     def change_color_intensity(self, sender=None):
         if sender is None:
@@ -231,7 +227,6 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
             return
         self.img[:, :, channel] = np.clip(self.img[:, :, channel] * intensity, 0, 255)
 
-
     def negate_rgb(self, channel=None):
         if channel == "red":
             self.img[:, :, 0] = 255 - self.img[:, :, 0]
@@ -241,7 +236,6 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
             self.img[:, :, 2] = 255 - self.img[:, :, 2]
         else:
             self.img[:, :, 0:3] = np.array([255, 255, 255]) - self.img[:, :, 0:3]
-
 
     def change_channels_data(self, sender=None):
         if sender is None:
@@ -259,24 +253,6 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         elif direction == "vertical":
             self.img = np.flipud(np.array(self.img))
 
-    def add_blur(self, neighbours):
-        img_copy = copy.deepcopy(self.img)
-        for y in range(1, self.img_height - 1):
-            for x in range(1, self.img_width - 1):
-                current_pixel = img_copy[x][y]
-                pixels = [img_copy[x - 1][y][0:3], img_copy[x][y - 1][0:3],
-                          img_copy[x + 1][y][0:3], img_copy[x][y + 1][0:3], current_pixel]
-                if neighbours == 8:
-                    corner_neigbours = [img_copy[x - 1][y - 1][0:3], img_copy[x + 1][y - 1][0:3],
-                                        img_copy[x - 1][y + 1][0:3], img_copy[x + 1][y + 1][0:3]]
-                    pixels.extend(corner_neigbours)
-                for i in range(3):
-                    if neighbours == 4:
-                        mean_value = sum([pixel[i] for pixel in pixels]) / 5
-                    else:
-                        mean_value = sum([pixel[i] for pixel in pixels]) / 9
-                    self.img[x][y][i] = mean_value
-
     def change_contrast(self):
         contrast_coef = self.contrast_coef.value() / 10
         mean_brightness = self.img[:, :, 0:3].mean()
@@ -289,6 +265,76 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         self.img[:, :, 0] = np.clip(np.mean(self.img[:, :, 0:3], axis=2) + 2 * sepia_coef, 0, 255)
         self.img[:, :, 1] = np.clip(np.mean(self.img[:, :, 0:3], axis=2) + sepia_coef, 0, 255)
         self.img[:, :, 2] = np.clip(np.mean(self.img[:, :, 0:3], axis=2), 0, 255)
+
+    def add_blur(self, neighbours):
+        img_copy = copy.deepcopy(self.img)
+        for y in range(1, self.img_height - 1):
+            for x in range(1, self.img_width - 1):
+                current_pixel = img_copy[x][y]
+                print(current_pixel)
+                pixels = [img_copy[x - 1][y][0:3], img_copy[x][y - 1][0:3],
+                          img_copy[x + 1][y][0:3], img_copy[x][y + 1][0:3], current_pixel]
+                if neighbours == 8:
+                    corner_neigbours = [img_copy[x - 1][y - 1][0:3], img_copy[x + 1][y - 1][0:3],
+                                        img_copy[x - 1][y + 1][0:3], img_copy[x + 1][y + 1][0:3]]
+                    pixels.extend(corner_neigbours)
+                for i in range(3):
+                    if neighbours == 4:
+                        mean_value = sum([pixel[i] for pixel in pixels]) / 5
+                    else:
+                        mean_value = sum([pixel[i] for pixel in pixels]) / 9
+
+                    self.img[x][y][i] = mean_value
+                    print(self.img[x][y])
+                    break
+
+    def kontr_map(self, n):
+        self.update_view()
+        img_copy = copy.deepcopy(self.img)
+        if n!=4:
+            for y in range(self.img_height):
+                for x in range(self.img_width):
+                    sosMin = np.nanmin(np.mean(
+                        img_copy[np.clip(x - n // 2, 0, self.img_width-1):np.clip(x + n // 2 + 1, 0, self.img_width-1),
+                        np.clip(y - n // 2, 0, self.img_height-1):np.clip(y + n // 2 + 1, 0, self.img_height-1),0:3],axis=1))
+                    sosMax = np.nanmax(np.mean(
+                        img_copy[np.clip(x - n // 2, 0, self.img_width-1):np.clip(x + n // 2 + 1, 0, self.img_width-1),
+                        np.clip(y - n // 2, 0, self.img_height-1):np.clip(y + n // 2 + 1, 0, self.img_height-1),0:3],axis=1))
+                    self.img[x][y][0:3]=[round(((sosMax-sosMin)/(sosMax+sosMin))*255)]*3
+        else:
+            n=3
+            for y in range(2,self.img_height-2):
+                for x in range(2,self.img_width-2):
+                    win=np.mean(img_copy[np.clip(x - n // 2, 0, self.img_width-1):np.clip(x + n // 2 + 1, 0, self.img_width-1),
+                        np.clip(y - n // 2, 0, self.img_height-1):np.clip(y + n // 2 + 1, 0, self.img_height-1),0:3],axis=1)
+                    win=np.delete(win.flatten(),[0,2,6,8])
+                    sosMin = np.nanmin(win)
+                    sosMax = np.nanmax(win)
+                    self.img[x][y][0:3]=[round(((sosMax-sosMin)/(sosMax+sosMin))*255)]*3
+
+            self.img[:2] = self.img[2:4]
+            self.img[-2:] = self.img[-5:-3]
+            self.img[:, :2] = self.img[:, 2:4]
+            self.img[:, -2:] = self.img[:, -5:-3]
+
+        self.image_view.clear()
+        self.image_view.setImage(self.img)
+
+
+    def calculate_brightness_profile(self):
+        row = self.profile_row.value()
+        if row < 0 or row > self.img_width - 1:
+            return
+        row_intensity = []
+        for x in range(self.img_width):
+            row_intensity.append(self.img[x][row][0:3].mean())
+        self.brightness_profile.clear()
+        self.brightness_profile.plot(row_intensity)
+
+    def ch_b(self):
+        intensity = np.mean(self.img, axis=2)
+        self.img[:, :, 0:3] = np.stack((intensity, intensity, intensity), axis=2)
+
 
     def backup_image(self):
         self.image_view.clear()
@@ -310,6 +356,8 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def update_view(self):
         self.img = copy.deepcopy(self.img_original)
+        if self.make_ch_b.isChecked():
+            self.ch_b()
         if self.horizontal_symmetric.isChecked():
             self.get_symmetric("horizontal")
         elif self.vertical_symmetric.isChecked():
@@ -355,9 +403,9 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
             self.add_blur(8)
         elif self.four_blur.isChecked():
             self.add_blur(4)
+        # self.kontr_map(8)
         self.image_view.clear()
         self.image_view.setImage(self.img)
-
 
 
 
