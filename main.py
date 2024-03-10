@@ -2,13 +2,15 @@ import copy
 import math
 import warnings
 
+from PyQt5.uic.properties import QtGui
+
 # suppress warnings
 warnings.filterwarnings('ignore')
 from sys import argv
 
 import numpy as np
 from PIL import Image
-from PyQt5 import QtWidgets, Qt
+from PyQt5 import QtWidgets, Qt, QtGui
 from PyQt5.QtGui import QPixmap, QPainter, QColor
 from PyQt5.QtWidgets import QFileDialog, QMessageBox
 from pyqtgraph import SignalProxy
@@ -16,7 +18,7 @@ from PyQt5 import uic
 # from converted_ui import Ui_MainWindow
 import pyqtgraph as pg
 
-Ui_MainWindow, _ = uic.loadUiType("hue/interface.ui")
+Ui_MainWindow, _ = uic.loadUiType("interface.ui")
 
 
 class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
@@ -206,7 +208,6 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
     def change_brightness(self):
         brightness = self.brightness_intensity.value()
         self.img[:, :, 3] = self.img[:, :, 3] + np.clip(brightness, 0, 255-self.img[:, :, 3])
-        print(type(self.img[0][0][0]))
 
     def change_color_intensity(self, sender=None):
         if sender is None:
@@ -271,7 +272,6 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
         for y in range(1, self.img_height - 1):
             for x in range(1, self.img_width - 1):
                 current_pixel = img_copy[x][y]
-                print(current_pixel)
                 pixels = [img_copy[x - 1][y][0:3], img_copy[x][y - 1][0:3],
                           img_copy[x + 1][y][0:3], img_copy[x][y + 1][0:3], current_pixel]
                 if neighbours == 8:
@@ -285,7 +285,6 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
                         mean_value = sum([pixel[i] for pixel in pixels]) / 9
 
                     self.img[x][y][i] = mean_value
-                    print(self.img[x][y])
                     break
 
     def kontr_map(self, n):
@@ -318,6 +317,14 @@ class Redactor(QtWidgets.QMainWindow, Ui_MainWindow):
             self.img[:, -2:] = self.img[:, -5:-3]
 
         self.image_view.clear()
+        self.gradient_editor = pg.GradientEditorItem(orientation='right')
+        self.gradient_editor.loadPreset('grey')
+        self.gradient_editor.setTickColor(0, QtGui.QColor(0, 0, 0))
+        self.gradient_editor.setTickColor(1, QtGui.QColor(255, 255, 255))
+        # self.gradient_editor.setTicksMovable(False)  # Сделать шкалу неизменяемой
+        self.gradient_editor.showTicks(True)
+        self.graphicsView.addItem(self.gradient_editor)
+
         self.image_view.setImage(self.img)
 
 
